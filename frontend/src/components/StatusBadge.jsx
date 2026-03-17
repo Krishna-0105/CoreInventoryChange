@@ -1,3 +1,4 @@
+import { ChartBarIcon } from '@heroicons/react/24/outline'
 const statusStyles = {
   Draft: 'bg-gray-100 text-gray-600',
   Waiting: 'bg-yellow-100 text-yellow-700',

@@ -3,6 +3,7 @@ import API from '../api/axios'
 import KPICard from '../components/KPICard'
 import StatusBadge from '../components/StatusBadge'
 import toast from 'react-hot-toast'
+import LowStockChart from '../components/LowStockChart'
 import {
   CubeIcon,
   ExclamationTriangleIcon,
@@ -10,26 +11,45 @@ import {
   ArrowUpTrayIcon,
   ArrowsRightLeftIcon,
   XCircleIcon,
+  CurrencyRupeeIcon, // ✅ ADD THIS
 } from '@heroicons/react/24/outline'
 
 const Dashboard = () => {
   const [stats, setStats] = useState(null)
+  const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const { data } = await API.get('/dashboard')
-        setStats(data)
-      } catch (error) {
-        toast.error('Failed to load dashboard')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchStats()
-  }, [])
+    useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const [statsRes, productsRes] = await Promise.all([
+        API.get('/dashboard'),
+        API.get('/products'),
+      ])
 
+      setStats(statsRes.data)
+      setProducts(productsRes.data)
+
+    } catch (error) {
+      toast.error('Failed to load dashboard')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  fetchData()
+}, [])
+  const lowStockProducts = products.filter(
+  (product) => product.currentStock < product.reorderLevel
+);
+const outOfStockProducts = products.filter(
+  (product) => product.currentStock === 0
+);
+const totalInventoryValue = products.reduce((total, product) => {
+  const price = Number(product.price) || 0;
+  const stock = Number(product.currentStock) || 0;
+  return total + (price * stock);
+}, 0);
   if (loading) {
     return (
       <div className='flex items-center justify-center h-64'>
@@ -57,21 +77,28 @@ const Dashboard = () => {
       <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 mb-12'>
         <KPICard
           title='Total Products'
-          value={stats?.totalProducts}
+          value={products.length}
           icon={CubeIcon}
           color='bg-blue-500'
           subtitle='Active products in system'
         />
         <KPICard
+  title='Total Inventory Value'
+  value={`₹${totalInventoryValue.toLocaleString('en-IN')}`}
+  icon={CurrencyRupeeIcon}
+  color='bg-green-600'
+  subtitle='Total stock worth'
+/>
+        <KPICard
           title='Low Stock Items'
-          value={stats?.lowStockItems}
+          value={lowStockProducts.length}
           icon={ExclamationTriangleIcon}
           color='bg-yellow-500'
           subtitle='Below reorder level'
         />
         <KPICard
           title='Out of Stock'
-          value={stats?.outOfStockItems}
+          value={outOfStockProducts.length}
           icon={XCircleIcon}
           color='bg-red-500'
           subtitle='Needs immediate attention'
@@ -105,11 +132,11 @@ const Dashboard = () => {
           <h2 className='text-lg font-semibold text-gray-800 mb-4'>
             Low Stock Alerts
           </h2>
-          {stats?.lowStockProducts?.length === 0 ? (
-            <p className='text-gray-400 text-sm'>All products are well stocked!</p>
-          ) : (
-            <div className='space-y-4'>
-              {stats?.lowStockProducts?.map((product) => (
+          {lowStockProducts.length === 0 ? (
+  <p className='text-gray-400 text-sm'>All products are well stocked!</p>
+) : (
+  <div className='space-y-4'>
+    {lowStockProducts.map((product) => (
                 <div
                   key={product._id}
                   className='flex items-center justify-between py-3 px-2 border-b border-gray-100 last:border-0 hover:bg-gray-50 rounded-md transition'
@@ -160,6 +187,7 @@ const Dashboard = () => {
           )}
         </div>
       </div>
+      
     </div>
   )
 }

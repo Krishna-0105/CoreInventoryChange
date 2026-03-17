@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 
+import Analytics from "./pages/Analytics"
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
@@ -16,16 +17,21 @@ import ReceiptDetails from './pages/ReceiptDetails'
 import DeliveryDetails from './pages/DeliveryDetails' 
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from "./pages/ResetPassword"
+
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Toaster position='top-right' />
+
         <Routes>
+          {/* Public Routes */}
           <Route path='/login' element={<Login />} />
           <Route path='/register' element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+
+          {/* Protected Routes */}
           <Route
             path='/'
             element={
@@ -36,6 +42,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path='/products'
             element={
@@ -46,6 +53,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path='/receipts'
             element={
@@ -56,16 +64,18 @@ function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
-  path='/receipts/:id'
-  element={
-    <ProtectedRoute>
-      <Layout>
-        <ReceiptDetails />
-      </Layout>
-    </ProtectedRoute>
-  }
-/>
+            path='/receipts/:id'
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ReceiptDetails />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path='/deliveries'
             element={
@@ -76,6 +86,18 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          <Route
+            path='/deliveries/:id'
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <DeliveryDetails />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path='/transfers'
             element={
@@ -86,6 +108,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path='/adjustments'
             element={
@@ -96,18 +119,23 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* ✅ Analytics Route (FIXED) */}
           <Route
-  path="/deliveries/:id"
-  element={
-    <ProtectedRoute>
-      <Layout>
-        <DeliveryDetails />
-      </Layout>
-    </ProtectedRoute>
-  }
-/>
+            path='/analytics'
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Analytics />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Catch all */}
           <Route path='*' element={<Navigate to='/' />} />
         </Routes>
+
       </BrowserRouter>
     </AuthProvider>
   )

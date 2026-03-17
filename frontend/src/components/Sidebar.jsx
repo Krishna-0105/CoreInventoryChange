@@ -7,10 +7,15 @@ import {
   ArrowUpTrayIcon,
   ArrowsRightLeftIcon,
   AdjustmentsHorizontalIcon,
+  ChartBarIcon, // ✅ ADD THIS
 } from '@heroicons/react/24/outline'
 
 const navItems = [
   { name: 'Dashboard', path: '/', icon: HomeIcon },
+
+  // ✅ ADD THIS BLOCK
+  { name: 'Analytics', path: '/analytics', icon: ChartBarIcon },
+
   { name: 'Products', path: '/products', icon: CubeIcon },
   { name: 'Receipts', path: '/receipts', icon: ArrowDownTrayIcon },
   { name: 'Deliveries', path: '/deliveries', icon: ArrowUpTrayIcon },
@@ -23,6 +28,7 @@ const Sidebar = () => {
 
   return (
     <div className='flex flex-col h-screen w-64 bg-gray-900 text-white fixed left-0 top-0 z-10'>
+      
       {/* Logo */}
       <div className='flex items-center gap-2 px-6 py-5 border-b border-gray-700'>
         <div className='w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center font-bold text-sm'>
