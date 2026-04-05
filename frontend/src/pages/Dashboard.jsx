@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import API from '../api/axios'
 import KPICard from '../components/KPICard'
 import StatusBadge from '../components/StatusBadge'
 import toast from 'react-hot-toast'
+import { io } from 'socket.io-client'
 import LowStockChart from '../components/LowStockChart'
 import {
   CubeIcon,
@@ -11,45 +12,115 @@ import {
   ArrowUpTrayIcon,
   ArrowsRightLeftIcon,
   XCircleIcon,
-  CurrencyRupeeIcon, // ✅ ADD THIS
+  CurrencyRupeeIcon,
 } from '@heroicons/react/24/outline'
 
 const Dashboard = () => {
-  const [stats, setStats] = useState(null)
+  const [stats, setStats] = useState({})
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
+  const [notifications, setNotifications] = useState([])
+  const [showNotifications, setShowNotifications] = useState(false)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [statsRes, productsRes, notifRes] = await Promise.all([
+  API.get('/dashboard'),
+  API.get('/products'),
+  API.get('/notifications'),
+])
+
+        setStats(statsRes.data || {})
+        setProducts(productsRes.data || [])
+        setNotifications(notifRes.data || [])
+      } catch (error) {
+        console.error(error)
+        toast.error('Failed to load dashboard')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  // 🔥 Derived Data
+  const lowStockProducts = useMemo(() => {
+  return products.filter(
+    (p) => p.currentStock <= p.reorderLevel
+  )
+}, [products])
+  //     useEffect(() => {
+  // if (hasRun.current) return
+  // hasRun.current = true
+
+  // if (lowStockProducts.length > 0) {
 
     useEffect(() => {
-  const fetchData = async () => {
-    try {
-      const [statsRes, productsRes] = await Promise.all([
-        API.get('/dashboard'),
-        API.get('/products'),
-      ])
+  if (products.length === 0) return
+  if (lowStockProducts.length === 0) return
 
-      setStats(statsRes.data)
-      setProducts(productsRes.data)
 
-    } catch (error) {
-      toast.error('Failed to load dashboard')
-    } finally {
-      setLoading(false)
-    }
-  }
+          const notified = JSON.parse(localStorage.getItem('notifiedProducts')) || []
 
-  fetchData()
-}, [])
-  const lowStockProducts = products.filter(
-  (product) => product.currentStock < product.reorderLevel
-);
-const outOfStockProducts = products.filter(
-  (product) => product.currentStock === 0
-);
-const totalInventoryValue = products.reduce((total, product) => {
-  const price = Number(product.price) || 0;
-  const stock = Number(product.currentStock) || 0;
-  return total + (price * stock);
-}, 0);
+          const newNotifications = []
+
+          lowStockProducts.forEach((p) => {
+            if (!notified.includes(p._id)) {
+              toast.error(`${p.name} is low on stock!`)
+              notified.push(p._id)
+
+              // 🔥 ADD TO NOTIFICATION PANEL
+              newNotifications.push({
+                id: p._id, // 🔥 FIX
+                message: `${p.name} is low on stock`,
+                time: new Date().toLocaleTimeString(),
+                read: false, // 🔥 NEW
+              })
+            }
+          })
+
+          if (newNotifications.length > 0) {
+            setNotifications((prev) => {
+      const existingIds = prev.map((n) => n.id)
+
+      const filtered = newNotifications.filter(
+        (n) => !existingIds.includes(n.id)
+      )
+
+      return [...filtered, ...prev]
+    })
+          }
+
+          localStorage.setItem('notifiedProducts', JSON.stringify(notified))
+        
+      }, [products])
+
+  
+
+  useEffect(() => {
+    const notified = JSON.parse(localStorage.getItem('notifiedProducts')) || []
+
+    const updated = notified.filter((id) =>
+      lowStockProducts.some((p) => p._id === id)
+    )
+
+    localStorage.setItem('notifiedProducts', JSON.stringify(updated))
+  }, [lowStockProducts])
+
+
+  const outOfStockProducts = products.filter(
+    (p) => p.currentStock === 0
+  )
+
+  const totalInventoryValue = products.reduce((total, p) => {
+    const price = Number(p.price) || 0
+    const stock = Number(p.currentStock) || 0
+    return total + price * stock
+  }, 0)
+
+  // 🔄 Loading UI
   if (loading) {
     return (
       <div className='flex items-center justify-center h-64'>
@@ -60,6 +131,7 @@ const totalInventoryValue = products.reduce((total, product) => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto bg-gray-50 min-h-screen">
+      {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
@@ -68,8 +140,63 @@ const totalInventoryValue = products.reduce((total, product) => {
           </p>
         </div>
 
-        <div className="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg text-sm font-medium">
-          Inventory Overview
+        <div className="relative">
+          <button
+            onClick={() => setShowNotifications(!showNotifications)}
+            className="relative p-2 bg-gray-100 rounded-full hover:bg-gray-200"
+          >
+            🔔
+
+            {notifications.filter(n => !n.read).length > 0 && (
+              <span className="absolute top-0 right-0 bg-red-500 text-white text-xs px-1 rounded-full">
+                {notifications.filter(n => !n.read).length}
+              </span>
+            )}
+          </button>
+
+          {showNotifications && (
+            <div className="absolute right-0 mt-2 w-72 bg-white shadow-lg rounded-lg p-4 z-50">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="font-semibold">Notifications</h3>
+
+                {notifications.length > 0 && (
+                  <button
+                    onClick={() => setNotifications([])}
+                    className="text-xs text-red-500 hover:underline"
+                  >
+                    Clear All
+                  </button>
+                )}
+              </div>
+
+              {notifications.length === 0 ? (
+                <p className="text-sm text-gray-400">No notifications</p>
+              ) : (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {notifications.map((n) => (
+                    <div key={n._id || n.productId}
+                      onClick={() =>
+                        setNotifications((prev) =>
+                          prev.map((item) =>
+                            item._id === n._id ? { ...item, read: true } : item
+                          )
+                        )
+                      }
+                      className={`text-sm border-b pb-2 cursor-pointer ${n.read ? 'text-gray-400' : 'font-medium'
+                        }`}
+                    >
+                      <p>{n.message}</p>
+                      <p className="text-xs text-gray-400">
+  {n.createdAt
+    ? new Date(n.createdAt).toLocaleTimeString()
+    : ''}
+</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -82,13 +209,15 @@ const totalInventoryValue = products.reduce((total, product) => {
           color='bg-blue-500'
           subtitle='Active products in system'
         />
+
         <KPICard
-  title='Total Inventory Value'
-  value={`₹${totalInventoryValue.toLocaleString('en-IN')}`}
-  icon={CurrencyRupeeIcon}
-  color='bg-green-600'
-  subtitle='Total stock worth'
-/>
+          title='Total Inventory Value'
+          value={`₹${totalInventoryValue.toLocaleString('en-IN')}`}
+          icon={CurrencyRupeeIcon}
+          color='bg-green-600'
+          subtitle='Total stock worth'
+        />
+
         <KPICard
           title='Low Stock Items'
           value={lowStockProducts.length}
@@ -96,6 +225,7 @@ const totalInventoryValue = products.reduce((total, product) => {
           color='bg-yellow-500'
           subtitle='Below reorder level'
         />
+
         <KPICard
           title='Out of Stock'
           value={outOfStockProducts.length}
@@ -103,51 +233,60 @@ const totalInventoryValue = products.reduce((total, product) => {
           color='bg-red-500'
           subtitle='Needs immediate attention'
         />
+
         <KPICard
           title='Pending Receipts'
-          value={stats?.pendingReceipts}
+          value={stats.pendingReceipts || 0}
           icon={ArrowDownTrayIcon}
           color='bg-green-500'
           subtitle='Awaiting validation'
         />
+
         <KPICard
           title='Pending Deliveries'
-          value={stats?.pendingDeliveries}
+          value={stats.pendingDeliveries || 0}
           icon={ArrowUpTrayIcon}
           color='bg-purple-500'
           subtitle='Awaiting validation'
         />
+
         <KPICard
           title='Pending Transfers'
-          value={stats?.pendingTransfers}
+          value={stats.pendingTransfers || 0}
           icon={ArrowsRightLeftIcon}
           color='bg-indigo-500'
           subtitle='Internal movements'
         />
       </div>
+
       <div className="border-t border-gray-200 mb-8"></div>
+
       <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
-        {/* Low Stock Products */}
-        <div className='bg-white rounded-xl shadow-sm hover:shadow-md transition duration-200 border border-gray-100 p-6'>
-          <h2 className='text-lg font-semibold text-gray-800 mb-4'>
+        {/* Low Stock Alerts */}
+        <div className='bg-white rounded-xl shadow-sm p-6'>
+          <h2 className='text-lg font-semibold mb-4'>
             Low Stock Alerts
           </h2>
+
           {lowStockProducts.length === 0 ? (
-  <p className='text-gray-400 text-sm'>All products are well stocked!</p>
-) : (
-  <div className='space-y-4'>
-    {lowStockProducts.map((product) => (
-                <div
-                  key={product._id}
-                  className='flex items-center justify-between py-3 px-2 border-b border-gray-100 last:border-0 hover:bg-gray-50 rounded-md transition'
-                >
+            <p className='text-gray-400 text-sm'>
+              All products are well stocked!
+            </p>
+          ) : (
+            <div className='space-y-4'>
+              {lowStockProducts.map((p) => (
+                <div key={p._id} className='flex justify-between'>
                   <div>
-                    <p className='text-sm font-medium text-gray-800'>{product.name}</p>
-                    <p className='text-xs text-gray-400'>{product.sku}</p>
+                    <p className='text-sm font-medium'>{p.name}</p>
+                    <p className='text-xs text-gray-400'>{p.sku}</p>
                   </div>
                   <div className='text-right'>
-                    <p className='text-lg font-bold text-red-500'>{product.currentStock}</p>
-                    <p className='text-xs text-gray-400'>min: {product.reorderLevel}</p>
+                    <p className='text-red-500 font-bold'>
+                      {p.currentStock}
+                    </p>
+                    <p className='text-xs text-gray-400'>
+                      min: {p.reorderLevel}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -156,29 +295,38 @@ const totalInventoryValue = products.reduce((total, product) => {
         </div>
 
         {/* Recent Movements */}
-        <div className='bg-white rounded-xl shadow-sm hover:shadow-md transition duration-200 border border-gray-100 p-6'>
-          <h2 className='text-lg font-semibold text-gray-800 mb-4'>
+        <div className='bg-white rounded-xl shadow-sm p-6'>
+          <h2 className='text-lg font-semibold mb-4'>
             Recent Stock Movements
           </h2>
+
           {stats?.recentMovements?.length === 0 ? (
-            <p className='text-gray-400 text-sm'>No recent movements</p>
+            <p className='text-gray-400 text-sm'>
+              No recent movements
+            </p>
           ) : (
             <div className='space-y-4'>
-              {stats?.recentMovements?.map((movement) => (
-                <div
-                  key={movement._id}
-                  className='flex items-center justify-between py-2 border-b border-gray-50 last:border-0'
-                >
+              {stats?.recentMovements?.map((m) => (
+                <div key={m._id} className='flex justify-between'>
                   <div>
-                    <p className='text-sm font-medium text-gray-800'>
-                      {movement.product?.name}
+                    <p className='text-sm font-medium'>
+                      {m.product?.name}
                     </p>
-                    <p className='text-xs text-gray-400'>{movement.referenceNumber}</p>
+                    <p className='text-xs text-gray-400'>
+                      {m.referenceNumber}
+                    </p>
                   </div>
+
                   <div className='text-right'>
-                    <StatusBadge status={movement.type} />
-                    <p className={`text-base font-bold mt-1 ${movement.quantityChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                      {movement.quantityChange >= 0 ? '+' : ''}{movement.quantityChange}
+                    <StatusBadge status={m.type} />
+                    <p
+                      className={`font-bold ${m.quantityChange >= 0
+                        ? 'text-green-500'
+                        : 'text-red-500'
+                        }`}
+                    >
+                      {m.quantityChange >= 0 ? '+' : ''}
+                      {m.quantityChange}
                     </p>
                   </div>
                 </div>
@@ -187,7 +335,8 @@ const totalInventoryValue = products.reduce((total, product) => {
           )}
         </div>
       </div>
-      
+
+
     </div>
   )
 }

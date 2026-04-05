@@ -1,7 +1,7 @@
 import Delivery from '../models/Delivery.js'
 import Product from '../models/Product.js'
 import StockLedger from '../models/StockLedger.js'
-
+import Notification from '../models/Notification.js'
 const generateDeliveryNumber = () => {
   return `DEL-${Date.now()}`
 }
@@ -69,10 +69,35 @@ const validateDelivery = async (req, res) => {
   for (const item of delivery.items) {
     const product = await Product.findById(item.product)
     if (product) {
+      if (product.currentStock < item.quantity) {
+        return res.status(400).json({
+          message: `Not enough stock for ${product.name}`,
+        })
+      }
       const stockBefore = product.currentStock
       product.currentStock -= item.quantity
+      console.log("STOCK CHECK:", {
+  name: product.name,
+  stock: product.currentStock,
+  reorder: product.reorderLevel
+})
       await product.save()
 
+      if (product.currentStock <= product.reorderLevel) {
+
+  console.log("🔥 LOW STOCK TRIGGERED:", product.name)
+
+  await Notification.create({
+    message: `${product.name} is low on stock`,
+    user: req.user._id,
+  })
+
+  global.io.emit('lowStock', {
+    productId: product._id,
+    name: product.name,
+    stock: product.currentStock,
+  })
+}
       // Log in stock ledger
       await StockLedger.create({
         product: product._id,

@@ -9,6 +9,9 @@ const Products = () => {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [editProduct, setEditProduct] = useState(null)
+
   const [formData, setFormData] = useState({
     name: '',
     sku: '',
@@ -20,7 +23,9 @@ const Products = () => {
     description: '',
   })
 
+  // 🔥 Fetch products
   const fetchProducts = async () => {
+    setLoading(true)
     try {
       const { data } = await API.get(`/products?search=${search}`)
       setProducts(data)
@@ -31,26 +36,35 @@ const Products = () => {
     }
   }
 
+  // 🔥 Debounce search
   useEffect(() => {
     fetchProducts()
   }, [search])
 
+  // 🔥 Create / Update
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setSubmitting(true)
+
     try {
-      await API.post('/products', formData)
-      toast.success('Product created successfully!')
-      setShowModal(false)
-      setFormData({
-        name: '', sku: '', category: '', unitOfMeasure: 'pcs',
-        currentStock: 0, reorderLevel: 10, warehouse: 'Main Warehouse', description: '',
-      })
+      if (editProduct) {
+        await API.put(`/products/${editProduct._id}`, formData)
+        toast.success('Product updated!')
+      } else {
+        await API.post('/products', formData)
+        toast.success('Product created successfully!')
+      }
+
+      resetForm()
       fetchProducts()
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to create product')
+      toast.error(error.response?.data?.message || 'Operation failed')
+    } finally {
+      setSubmitting(false)
     }
   }
 
+  // 🔥 Delete
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this product?')) return
     try {
@@ -62,15 +76,64 @@ const Products = () => {
     }
   }
 
+  // 🔥 Edit
+  const handleEdit = (product) => {
+    setEditProduct(product)
+
+    setFormData({
+      name: product.name || '',
+      sku: product.sku || '',
+      category: product.category || '',
+      unitOfMeasure: product.unitOfMeasure || 'pcs',
+      currentStock: product.currentStock ?? 0,
+      reorderLevel: product.reorderLevel ?? 10,
+      warehouse: product.warehouse || 'Main Warehouse',
+      description: product.description || '',
+    })
+
+    setShowModal(true)
+  }
+
+  // 🔥 Reset
+  const resetForm = () => {
+    setShowModal(false)
+    setEditProduct(null)
+    setFormData({
+      name: '',
+      sku: '',
+      category: '',
+      unitOfMeasure: 'pcs',
+      currentStock: 0,
+      reorderLevel: 10,
+      warehouse: 'Main Warehouse',
+      description: '',
+    })
+  }
+
   return (
     <div>
+      {/* Header */}
       <div className='flex items-center justify-between mb-6'>
         <div>
           <h1 className='text-2xl font-bold text-gray-800'>Products</h1>
           <p className='text-gray-500 text-sm mt-1'>Manage your product catalogue</p>
         </div>
+
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => {
+            setEditProduct(null)
+            setFormData({
+              name: '',
+              sku: '',
+              category: '',
+              unitOfMeasure: 'pcs',
+              currentStock: '',
+              reorderLevel: '',
+              warehouse: 'Main Warehouse',
+              description: '',
+            })
+            setShowModal(true)
+          }}
           className='flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors'
         >
           <PlusIcon className='w-4 h-4' />
@@ -131,14 +194,21 @@ const Products = () => {
                   <td className='px-6 py-4 text-gray-500'>{product.warehouse}</td>
                   <td className='px-6 py-4'>
                     {product.currentStock === 0 ? (
-                      <StatusBadge status='Canceled' />
+                      <StatusBadge status='Out of Stock' />
                     ) : product.currentStock <= product.reorderLevel ? (
-                      <StatusBadge status='Waiting' />
+                      <StatusBadge status='Low Stock' />
                     ) : (
-                      <StatusBadge status='Done' />
+                      <StatusBadge status='In Stock' />
                     )}
                   </td>
-                  <td className='px-6 py-4'>
+                  <td className='px-6 py-4 flex gap-2'>
+                    <button
+                      onClick={() => handleEdit(product)}
+                      className='text-blue-500 hover:text-blue-700 text-xs font-medium'
+                    >
+                      Edit
+                    </button>
+
                     <button
                       onClick={() => handleDelete(product._id)}
                       className='text-red-500 hover:text-red-700 text-xs font-medium'
@@ -157,7 +227,9 @@ const Products = () => {
       {showModal && (
         <div className='fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50'>
           <div className='bg-white rounded-2xl p-6 w-full max-w-md shadow-xl'>
-            <h2 className='text-lg font-semibold text-gray-800 mb-4'>Add New Product</h2>
+            <h2 className='text-lg font-semibold text-gray-800 mb-4'>
+              {editProduct ? 'Edit Product' : 'Add New Product'}
+            </h2>
             <form onSubmit={handleSubmit} className='space-y-3'>
               <input
                 type='text' placeholder='Product Name' required
@@ -165,12 +237,14 @@ const Products = () => {
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className='w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
               />
+
               <input
                 type='text' placeholder='SKU Code' required
                 value={formData.sku}
                 onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
                 className='w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
               />
+
               <input
                 type='text' placeholder='Category' required
                 value={formData.category}
@@ -179,14 +253,16 @@ const Products = () => {
               />
               <div className='grid grid-cols-2 gap-3'>
                 <input
-                  type='number' placeholder='Initial Stock'
-                  value={formData.currentStock}
-                  onChange={(e) => setFormData({ ...formData, currentStock: Number(e.target.value) })}
-                  className='w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
+                  type='number'
+                  placeholder='Stock (Auto managed)'
+                  value={formData.currentStock || ''}
+                  disabled
+                  className='w-full px-4 py-2 border border-gray-200 rounded-lg text-sm bg-gray-100 cursor-not-allowed'
                 />
+
                 <input
                   type='number' placeholder='Reorder Level'
-                  value={formData.reorderLevel}
+                  value={formData.reorderLevel || ''}
                   onChange={(e) => setFormData({ ...formData, reorderLevel: Number(e.target.value) })}
                   className='w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
                 />
@@ -209,7 +285,7 @@ const Products = () => {
                   type='submit'
                   className='flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium'
                 >
-                  Create Product
+                  {editProduct ? 'Update Product' : 'Create Product'}
                 </button>
               </div>
             </form>

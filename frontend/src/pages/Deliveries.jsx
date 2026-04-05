@@ -211,6 +211,22 @@ const Deliveries = () => {
                       </button>
                     )}
 
+                    {/* 🔥 ADD THIS LINE */}
+                    {delivery.status === 'Done' && (
+                      <>
+                        <span className='text-gray-400 text-xs font-medium'>
+                          Completed
+                        </span>
+
+                        <Link
+                          to={`/deliveries/${delivery._id}`}
+                          className='text-blue-600 hover:underline text-xs font-medium'
+                        >
+                          View
+                        </Link>
+                      </>
+                    )}
+
                   </td>
 
                 </tr>
@@ -263,7 +279,12 @@ const Deliveries = () => {
                       <option value=''>Select Product</option>
 
                       {products.map((p) => (
-                        <option key={p._id} value={p._id}>
+                        <option
+                          key={p._id}
+                          value={p._id}
+                          disabled={p.currentStock === 0}
+                          className={p.currentStock === 0 ? 'text-gray-400' : ''}
+                        >
                           {p.name} (Stock: {p.currentStock})
                         </option>
                       ))}

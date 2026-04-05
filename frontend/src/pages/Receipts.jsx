@@ -150,7 +150,7 @@ const Receipts = () => {
                         className='flex items-center gap-1 text-green-600 hover:text-green-800 text-xs font-medium'
                       >
                         <CheckIcon className='w-4 h-4' />
-                        Validate
+                        Mark as Received
                       </button>
                     )}
                     {receipt.status !== 'Done' && (

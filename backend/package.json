@@ -23,7 +23,8 @@
     "morgan": "^1.10.0",
     "nodemailer": "^8.0.2",
     "passport-github2": "^0.1.12",
-    "react-phone-input-2": "^2.15.1"
+    "react-phone-input-2": "^2.15.1",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "nodemon": "^3.0.0"

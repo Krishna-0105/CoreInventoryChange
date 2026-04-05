@@ -1,7 +1,7 @@
 import Receipt from '../models/Receipt.js'
 import Product from '../models/Product.js'
 import StockLedger from '../models/StockLedger.js'
-
+import Notification from '../models/Notification.js' // 🔥 add at top
 const generateReceiptNumber = () => {
   return `REC-${Date.now()}`
 }
@@ -59,6 +59,27 @@ const validateReceipt = async (req, res) => {
       const stockBefore = product.currentStock
       product.currentStock += item.quantity
       await product.save()
+
+      // 🔥 Emit real-time low stock alert
+      
+
+if (product.currentStock <= product.reorderLevel) {
+
+  console.log(`LOW STOCK ALERT: ${product.name} is low on stock`)
+  // 🔥 SAVE IN DB
+  await Notification.create({
+    message: `${product.name} is low on stock`,
+    user: req.user._id,
+  })
+
+  // 🔥 REAL-TIME EVENT
+  global.io.emit('lowStock', {
+    productId: product._id,
+    name: product.name,
+    stock: product.currentStock,
+  })
+}
+
 
       // Log in stock ledger
       await StockLedger.create({
