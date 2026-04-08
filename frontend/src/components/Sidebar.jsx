@@ -25,6 +25,10 @@ const navItems = [
 
 const Sidebar = () => {
   const { user, logout } = useAuth()
+  const handleLogout = () => {
+  sessionStorage.removeItem('shownNotifications')
+  logout()
+}
 
   return (
     <div className='flex flex-col h-screen w-64 bg-gray-900 text-white fixed left-0 top-0 z-10'>
@@ -70,7 +74,7 @@ const Sidebar = () => {
           </div>
         </div>
         <button
-          onClick={logout}
+          onClick={handleLogout}
           className='w-full text-left text-sm text-gray-400 hover:text-white px-3 py-2 rounded-lg hover:bg-gray-800 transition-colors'
         >
           Logout
