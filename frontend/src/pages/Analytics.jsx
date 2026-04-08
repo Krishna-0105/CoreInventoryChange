@@ -13,6 +13,9 @@ const Analytics = () => {
   const fetchProducts = async () => {
     try {
       const res = await API.get("/products");
+
+      console.log("FETCHED PRODUCTS:", res.data); // 👈 ADD THIS LINE
+
       setProducts(res.data);
     } catch (error) {
       console.error("Error fetching products", error);
@@ -25,7 +28,7 @@ const Analytics = () => {
 
     const interval = setInterval(() => {
       fetchProducts();
-    }, 5000); // every 5 sec
+    }, 2000); // every 5 sec
 
     return () => clearInterval(interval);
   }, []);
@@ -66,7 +69,7 @@ const Analytics = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto bg-gray-50 min-h-screen">
-      
+
       <h1 className="text-3xl font-bold text-gray-800 mb-2">
         Analytics Dashboard
       </h1>

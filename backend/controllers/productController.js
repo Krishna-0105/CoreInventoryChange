@@ -64,7 +64,7 @@ const updateProduct = async (req, res) => {
     product.reorderLevel = req.body.reorderLevel || product.reorderLevel
     product.warehouse = req.body.warehouse || product.warehouse
     product.description = req.body.description || product.description
-
+    product.currentStock = req.body.currentStock ?? product.currentStock
     const updatedProduct = await product.save()
     res.json(updatedProduct)
   } else {

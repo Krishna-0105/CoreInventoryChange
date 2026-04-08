@@ -3,8 +3,9 @@ import API from '../api/axios'
 import StatusBadge from '../components/StatusBadge'
 import toast from 'react-hot-toast'
 import { PlusIcon, CheckIcon } from '@heroicons/react/24/outline'
-
+import { useNavigate } from 'react-router-dom'
 const Transfers = () => {
+  const navigate = useNavigate()
   const [transfers, setTransfers] = useState([])
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -50,17 +51,53 @@ const Transfers = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
     try {
+      // ✅ STEP 1: Validate stock BEFORE anything
+      for (let item of formData.items) {
+        const product = products.find(p => p._id === item.product)
+
+        if (!product) continue
+
+        if (product.currentStock < item.quantity) {
+          toast.error(`Not enough stock for ${product.name}`)
+          return
+        }
+      }
+
+      // ✅ STEP 2: Create transfer
       await API.post('/transfers', formData)
-      toast.success('Transfer created!')
+
+      // ✅ STEP 3: Update stock
+      for (let item of formData.items) {
+        const product = products.find(p => p._id === item.product)
+
+        const newStock = product.currentStock - item.quantity
+
+        await API.put(`/products/${product._id}`, {
+          ...product,
+          currentStock: newStock
+        })
+      }
+
+      toast.success('Transfer created & stock updated!')
+
+      await fetchData()
+
       setShowModal(false)
-      setFormData({ fromLocation: '', toLocation: '', notes: '', items: [{ product: '', quantity: 1 }] })
-      fetchData()
+
+      setFormData({
+        fromLocation: '',
+        toLocation: '',
+        notes: '',
+        items: [{ product: '', quantity: 1 }]
+      })
+
     } catch (error) {
+      console.log(error.response?.data?.message)
       toast.error(error.response?.data?.message || 'Failed to create transfer')
     }
   }
-
   const handleValidate = async (id) => {
     try {
       await API.put(`/transfers/${id}/validate`)
@@ -128,23 +165,27 @@ const Transfers = () => {
                     {new Date(transfer.createdAt).toLocaleDateString()}
                   </td>
                   <td className='px-6 py-4 flex items-center gap-3'>
-                    {transfer.status !== 'Done' && transfer.status !== 'Canceled' && (
+                    <td className='px-6 py-4 flex items-center gap-3 text-sm'>
+
+                      {transfer.status === 'Done' ? (
+                        <span className='text-gray-400'>Completed</span>
+                      ) : (
+                        <button
+                          onClick={() => handleValidate(transfer._id)}
+                          className='text-green-600 hover:text-green-800 font-medium'
+                        >
+                          Validate
+                        </button>
+                      )}
+
                       <button
-                        onClick={() => handleValidate(transfer._id)}
-                        className='flex items-center gap-1 text-green-600 hover:text-green-800 text-xs font-medium'
+                        onClick={() => navigate(`/transfers/${transfer._id}`)}
+                        className='text-blue-600 hover:text-blue-800 font-medium'
                       >
-                        <CheckIcon className='w-4 h-4' />
-                        Validate
+                        View
                       </button>
-                    )}
-                    {transfer.status !== 'Done' && (
-                      <button
-                        onClick={() => handleDelete(transfer._id)}
-                        className='text-red-500 hover:text-red-700 text-xs font-medium'
-                      >
-                        Delete
-                      </button>
-                    )}
+
+                    </td>
                   </td>
                 </tr>
               ))

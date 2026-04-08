@@ -117,5 +117,18 @@ const deleteTransfer = async (req, res) => {
   await transfer.deleteOne()
   res.json({ message: 'Transfer deleted' })
 }
+const getTransferById = async (req, res) => {
+  try {
+    const transfer = await Transfer.findById(req.params.id)
+      .populate('items.product', 'name')
 
-export { getTransfers, createTransfer, validateTransfer, deleteTransfer }
+    if (!transfer) {
+      return res.status(404).json({ message: 'Transfer not found' })
+    }
+
+    res.json(transfer)
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching transfer' })
+  }
+}
+export { getTransfers, createTransfer, validateTransfer, deleteTransfer, getTransferById }

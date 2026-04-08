@@ -14,10 +14,10 @@ import Deliveries from './pages/Deliveries'
 import Transfers from './pages/Transfers'
 import Adjustments from './pages/Adjustments'
 import ReceiptDetails from './pages/ReceiptDetails'
-import DeliveryDetails from './pages/DeliveryDetails' 
+import DeliveryDetails from './pages/DeliveryDetails'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from "./pages/ResetPassword"
-
+import TransferDetails from './pages/TransferDetails'
 function App() {
   return (
     <AuthProvider>
@@ -108,7 +108,16 @@ function App() {
               </ProtectedRoute>
             }
           />
-
+          <Route
+            path='/transfers/:id'
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <TransferDetails />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path='/adjustments'
             element={
