@@ -1,1 +1,1 @@
-# CoreInventory_Hackathon_Project
+# CoreInventory
