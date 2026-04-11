@@ -12,7 +12,7 @@ const countryOptions = allCountries.map((country) => ({
   value: country.dialCode,
   label: `${country.name} (+${country.dialCode})`,
   flag: `https://flagcdn.com/w20/${country.iso2}.png`,
-  digits: 10
+   digits: country.format ? country.format.replace(/[^.]/g, "").length : 10
 }))
 
 const Register = () => {
@@ -224,7 +224,7 @@ const Register = () => {
                 }}
 
                 className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                placeholder="Enter phone number"
+                placeholder={`Enter ${selectedCountry.digits} digit number`}
               />
 
             </div>
