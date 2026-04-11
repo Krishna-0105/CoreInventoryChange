@@ -115,17 +115,22 @@ const forgotPassword = async (req, res) => {
     const { email } = req.body
 
     const user = await User.findOne({ email })
-    const resetToken = crypto.randomBytes(20).toString("hex")
+    // const resetToken = crypto.randomBytes(20).toString("hex")
 
-user.resetPasswordToken = resetToken
-user.resetPasswordExpire = Date.now() + 15 * 60 * 1000
+    // user.resetPasswordToken = resetToken
+    // user.resetPasswordExpire = Date.now() + 15 * 60 * 1000
 
-await user.save({ validateBeforeSave: false })
+    // await user.save({ validateBeforeSave: false })
 
     if (!user) {
       return res.status(404).json({ message: "User not found" })
     }
+        const resetToken = crypto.randomBytes(20).toString("hex")
 
+    user.resetPasswordToken = resetToken
+    user.resetPasswordExpire = Date.now() + 15 * 60 * 1000
+
+    await user.save({ validateBeforeSave: false })
     const resetLink = `${process.env.CLIENT_URL}/reset-password?token=${resetToken}`
 
     await sendEmail(
@@ -147,35 +152,50 @@ await user.save({ validateBeforeSave: false })
 }
 const resetPassword = async (req, res) => {
   try {
-    const { token, newPassword } = req.body
+     console.log("TOKEN RECEIVED:", req.params.token)
+  console.log("BODY:", req.body)
+    const { password } = req.body
+    const token = req.params.token
+    console.log("DB TOKEN vs URL TOKEN:", token)
     const passwordRegex =
-  /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,16}$/
+      /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,16}$/
 
-if (!passwordRegex.test(newPassword)) {
-  return res.status(400).json({
-    message:
-      "Password must be 8-16 characters and include 1 uppercase letter, 1 number, and 1 special character"
-  })
-}
-    const user = await User.findOne({ email })
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" })
+    if (!passwordRegex.test(password)) {
+      return res.status(400).json({
+        message:
+          "Password must be 8-16 characters and include 1 uppercase letter, 1 number, and 1 special character",
+      })
     }
 
-    user.password = newPassword
+    // ✅ Find user using token
+    const user = await User.findOne({
+      
+      resetPasswordToken: token,
+      
+      resetPasswordExpire: { $gt: Date.now() },
+    })
+    console.log("USER FOUND:", user)
+
+    if (!user) {
+      return res.status(400).json({
+        message: "Invalid or expired token",
+      })
+    }
+
+    // ✅ Update password
+    user.password = password
     user.resetPasswordToken = undefined
-user.resetPasswordExpire = undefined
-    await user.save({ validateBeforeSave: false })
+    user.resetPasswordExpire = undefined
+
+    await user.save()
 
     res.json({
-      message: "Password updated successfully"
+      message: "Password updated successfully",
     })
-
   } catch (error) {
     console.log(error)
     res.status(500).json({
-      message: "Server error"
+      message: "Server error",
     })
   }
 }

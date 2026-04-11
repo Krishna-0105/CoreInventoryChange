@@ -9,7 +9,8 @@ const ResetPassword = () => {
 
     // ✅ Moved inside the component
     const [searchParams] = useSearchParams()
-    const token = searchParams.get("token")
+    const token = new URLSearchParams(window.location.search).get("token")
+    console.log("TOKEN:", token)
     const navigate = useNavigate()
 
     const [password, setPassword] = useState("")
@@ -41,8 +42,7 @@ const ResetPassword = () => {
 
         try {
             setLoading(true)
-            await API.post("/auth/reset-password", {
-                token,
+            await API.put(`/auth/reset-password/${token}`, {
                 newPassword: password
             })
             toast.success("Password updated successfully")
