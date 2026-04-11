@@ -187,7 +187,7 @@ const resetPassword = async (req, res) => {
     user.resetPasswordToken = undefined
     user.resetPasswordExpire = undefined
 
-    await user.save()
+    await user.save({ validateBeforeSave: false })
 
     res.json({
       message: "Password updated successfully",
